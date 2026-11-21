@@ -8,22 +8,34 @@ This repository builds off of other repositories:
 
 - SAMD21 Drivers [fprime-samd](https://github.com/fprime-community/fprime-samd)
 - [fprime-baremetal](https://github.com/fprime-community/fprime-baremetal) OSAL
+- The Rfm9X manager from [fprime-sensors](https://github.com/fprime-community/fprime-sensors)
 
 `lib/fprime` tracks [nasa/fprime](https://github.com/nasa/fprime) `devel` (at or past
 [nasa/fprime#6326](https://github.com/nasa/fprime/pull/6326), whose assert-hook names
 `lib/fprime-samd` implements). `config-samd-reference/AsyncSpiCfg.fpp` sizes the async SPI
 driver (`Drv.AsyncSpi` / `Drv.AsyncGuardedSpi`) at four slots for this deployment.
+One submodule pin is **temporary**: `lib/fprime` points at `lestarch-autobot/fprime` branch
+`samd-reference-kronos3-upstream-devel` — the previous `Kronos3/fprime` `upstream` pin merged with
+`nasa/fprime` `devel` (which carries [nasa/fprime#6237](https://github.com/nasa/fprime/pull/6237):
+`Drv.AsyncSpi` / `Drv.AsyncGuardedSpi`, `AsyncSpiCfg`). Move the pin back to `Kronos3/fprime` once its
+`upstream` branch picks up that devel. `config-samd-reference/AsyncSpiCfg.fpp` sizes the async SPI
+driver at one slot for this deployment.
+The sensor submodule is temporarily pinned to the fork and commit for
+[fprime-sensors#28](https://github.com/fprime-community/fprime-sensors/pull/28).
+The `fprime-samd` pin includes its asynchronous SPI driver, which the radio needs.
 
 ## Hardware
 
-The SAMD21 Curiosity Nano (Microchip part number `DM320119`) and nothing else. Optional:
-an I2C device for `I2cTester` to talk to, and a jumper between the two GPIO pins so
-`GpioIn` can see what `GpioOut` drives.
+The SAMD21 Curiosity Nano (Microchip part number `DM320119`), with an optional Adafruit
+RFM9x breakout for radio echo. Also optional: an I2C device for `I2cTester`, and a jumper
+between the two GPIO pins so `GpioIn` can see what `GpioOut` drives.
 
 | Function               | Pin(s)                 | Peripheral                                   |
 | ---------------------- | ---------------------- | -------------------------------------------- |
 | Uplink / downlink UART | PA22 (TX), PB22 (RX)   | SERCOM5, 115200 8N1, LSB first               |
 | I2C                    | PA12 (SDA), PA13 (SCL) | SERCOM4, 400 kHz fast mode                   |
+| RFM9x SPI              | PA16 (MOSI), PA17 (SCK), PA19 (MISO) | SERCOM1, 1 MHz, SPI mode 0 |
+| RFM9x control          | PA18 (CS), PA20 (EN)   | Software chip select and regulator enable    |
 | GPIO input             | PA23                   | pull-up, EIC interrupt on both edges         |
 | GPIO output            | PA25                   | push-pull                                    |
 | Rate-group tick        | —                      | RTC, ultra-low-power 32 kHz oscillator, 8 Hz |
@@ -33,6 +45,57 @@ CDC virtual COM port (CDC RX / CDC TX in the kit user guide), so the single USB 
 powers and programs the board also carries uplink / downlink — no external USB-serial
 adapter is needed. To use a different UART instead, re-pin `comDriver` in
 `CuriosityReference/Top/instances.fpp`.
+
+### RFM9x radio echo
+
+Connect a 915 MHz Adafruit RFM9x breakout with power off:
+
+| Curiosity Nano | RFM9x breakout |
+| --- | --- |
+| Verified 3.3 V supply | VIN |
+| GND | GND |
+| PA16 | MOSI |
+| PA17 | SCK |
+| PA19 | MISO |
+| PA18 | CS |
+| PA20 | EN |
+
+Leave RST and the radio GPIO pins unconnected. EN controls the breakout's regulator,
+not the radio's RST pin. The breakout pulls EN up to VIN, so **do not connect VIN to
+VBUS** while EN is connected to the MCU: VBUS is approximately 5 V. Use a verified
+3.3 V supply with a common ground instead. The kit's VTG defaults to 3.3 V but is
+adjustable; measure it and ensure the supply can support the radio's peak current of
+up to 150 mA. Install an antenna matched to 915 MHz before transmitting. See the
+[Adafruit breakout pinout](https://learn.adafruit.com/adafruit-rfm69hcw-and-rfm96-rfm95-rfm98-lora-packet-padio-breakouts/pinouts).
+
+The radio starts at **915 MHz, SF7, 125 kHz bandwidth, coding rate 4/5, and 13 dBm**.
+The other radio must use the same profile. In particular, the Rfm9X PR's unmodified
+STM32 component default is **434 MHz**: set its `FREQUENCY_HZ` to 915 MHz before
+testing. Use radio hardware and transmit settings permitted in your location.
+
+The manager polls at 8 Hz and echoes each received raw payload back over LoRa, up to
+255 bytes. It is not a second F Prime GDS transport: UART remains the command and
+telemetry link. There is one fixed receive/echo buffer; if another packet arrives while
+it is in use, the manager reports `AllocationFailed` rather than overwriting it.
+Avoid configuring the STM32 to echo every reply as well, which would create an echo
+loop. A missing radio leaves the UART deployment running and produces radio detection
+warnings.
+
+Use the GDS command `radio.SEND_STRING` for a manual radio transmit, or request
+`tlm.SEND_PKT(3)` for radio counters and state. Parameter SET commands affect the running
+radio, but there is no parameter database or persistent parameter storage; SAVE
+commands fail and a board reboot restores 915 MHz and the other defaults. State and counters
+can also be observed through the `Radio` telemetry packet.
+
+To run the simulated echo test with the same queue and reset timing as the flight image:
+
+```bash
+fprime-util generate --ut --build-cache "$PWD/build-radio-native-ut" \
+    -DSAMD_RADIO_TEST_DEPLOYMENT_CONFIG=ON
+cmake --build "$PWD/build-radio-native-ut" --target CuriosityReference_RadioSupport_ut_exe
+ctest --test-dir "$PWD/build-radio-native-ut" --output-on-failure \
+    -R '^CuriosityReference_RadioSupport_ut_exe$'
+```
 
 ## Quickstart
 
@@ -46,6 +109,15 @@ pip install -r requirements.txt
 
 fprime-util generate samd21g17
 fprime-util build -j"$(nproc)" -p CuriosityReference samd21g17
+```
+
+For an existing checkout, generate a fresh cache when `library_locations` changes.
+For example, without replacing an existing cache:
+
+```bash
+fprime-util generate --build-cache "$PWD/build-radio-samd21g17" samd21g17
+fprime-util build --build-cache "$PWD/build-radio-samd21g17" \
+    -j"$(nproc)" -p CuriosityReference samd21g17
 ```
 
 The build prints an `arm-none-eabi-size -A` table and leaves artifacts in

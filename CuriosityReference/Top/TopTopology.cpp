@@ -88,8 +88,8 @@ void setupTopology(const TopologyState& state) {
     // by the static_cmd_dispatch build autocoder, so there is nothing to register at runtime.
 
     // Autocoded parameter loading. Function provided by autocoder.
-    // DISABLED FOR BARE-METAL BOARDS. Loading parameters is not supported because there is no file system to load them
-    // from, and no component in this deployment declares a parameter.
+    // There is no parameter database. The radio loads its startup defaults via
+    // RadioSupport in its startTasks phase.
     // loadParameters();
 
     // Autocoded task kick-off (active components). Function provided by autocoder. Starts no threads here -- every

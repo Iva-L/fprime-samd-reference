@@ -24,6 +24,8 @@ module CuriosityReference {
         USART0_UPL_DWN_RX
         SERCOM4_I2C_WRITE
         SERCOM4_I2C_READ
+        SERCOM1_SPI_MOSI
+        SERCOM1_SPI_MISO
     }
 
     deployment topology Top {
@@ -61,6 +63,11 @@ module CuriosityReference {
         instance inPA23
         instance pinOut
         instance outPA25
+        instance radio
+        instance radioSupport
+        instance radioSpi
+        instance radioCs
+        instance radioEnable
 
         instance tlm
 
@@ -105,6 +112,15 @@ module CuriosityReference {
                 i2cDriver.ReceiveNotAcknowledged
                 i2cDriver.DeviceOnBus
                 i2cDriver.StallRecoveryCount
+            }
+
+            packet Radio group 0 {
+                radio.PacketsTransmitted
+                radio.PacketsReceived
+                radio.RxCrcErrors
+                radio.LastPacketRssi
+                radio.LastPacketSnr
+                radio.RadioState
             }
 
         } omit {
@@ -155,9 +171,10 @@ module CuriosityReference {
         @ not fail the build -- it silently stops that driver from ever delivering a
         @ completion.
         connections ActiveRateGroups {
-            cycler.cycleOut -> comDriver.activeIn
-            cycler.cycleOut -> rateDriver.activeIn
-            cycler.cycleOut -> i2cDriver.activeIn
+            cycler.cycleOut[0] -> radioSpi.activeIn
+            cycler.cycleOut[1] -> comDriver.activeIn
+            cycler.cycleOut[2] -> rateDriver.activeIn
+            cycler.cycleOut[3] -> i2cDriver.activeIn
         }
 
         connections RateGroups {
@@ -174,6 +191,7 @@ module CuriosityReference {
             # Rate group 1 -- 8 Hz
             rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> rg8Hz.CycleIn
             rg8Hz.RateGroupMemberOut[0]                           -> comDriver.schedIn
+            rg8Hz.RateGroupMemberOut[1]                           -> radio.run
 
             # Rate group 2 -- 1 Hz
             rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rg1Hz.CycleIn
@@ -252,6 +270,25 @@ module CuriosityReference {
             i2cDriver.dmaTransactionOut[Samd21.I2cDriver.DmaChannel.READ]      -> dmaDriver.sendTransactionIn[DmaChannel.SERCOM4_I2C_READ]
             i2cDriver.dmaTransactionAbortOut[Samd21.I2cDriver.DmaChannel.READ] -> dmaDriver.abortTransactionIn[DmaChannel.SERCOM4_I2C_READ]
             dmaDriver.transactionIsrOut[DmaChannel.SERCOM4_I2C_READ]           -> i2cDriver.dmaReplyIn[Samd21.I2cDriver.DmaChannel.READ]
+        }
+
+        connections Radio {
+            radio.spiWriteRead -> radioSpi.SpiWriteRead[0]
+            radioSpi.SpiWriteReadComplete[0] -> radio.spiWriteReadComplete
+            radioSpi.chipSelectGpioOut[0] -> radioCs.gpioWrite
+            radio.resetGpio -> radioEnable.gpioWrite
+            radioSpi.dmaTransactionOut[Samd21.SpiDriver.DmaChannel.MOSI] -> dmaDriver.sendTransactionIn[DmaChannel.SERCOM1_SPI_MOSI]
+            radioSpi.dmaTransactionAbortOut[Samd21.SpiDriver.DmaChannel.MOSI] -> dmaDriver.abortTransactionIn[DmaChannel.SERCOM1_SPI_MOSI]
+            dmaDriver.transactionIsrOut[DmaChannel.SERCOM1_SPI_MOSI] -> radioSpi.dmaReplyIn[Samd21.SpiDriver.DmaChannel.MOSI]
+            radioSpi.dmaTransactionOut[Samd21.SpiDriver.DmaChannel.MISO] -> dmaDriver.sendTransactionIn[DmaChannel.SERCOM1_SPI_MISO]
+            radioSpi.dmaTransactionAbortOut[Samd21.SpiDriver.DmaChannel.MISO] -> dmaDriver.abortTransactionIn[DmaChannel.SERCOM1_SPI_MISO]
+            dmaDriver.transactionIsrOut[DmaChannel.SERCOM1_SPI_MISO] -> radioSpi.dmaReplyIn[Samd21.SpiDriver.DmaChannel.MISO]
+            radio.allocate -> radioSupport.allocate
+            radio.deallocate -> radioSupport.deallocate
+            radio.prmGet -> radioSupport.getParameter
+            # Transfer ownership back to the radio for an exact-payload echo.
+            radio.dataOut -> radio.dataIn
+            radio.dataReturnOut -> radio.dataReturnIn
         }
 
         @ Attach the I2C client to the bus driver. Both request/callback pairs are

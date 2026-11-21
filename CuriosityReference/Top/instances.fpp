@@ -183,4 +183,37 @@ module CuriosityReference {
         );
         """
     }
+
+    @ The RFM9X uses a dedicated SERCOM1 and software chip select.
+    instance radioSpi: Samd21.SpiDriver base id FixedBaseIds.NO_DICTIONARY {
+        phase Fpp.ToCpp.Phases.configComponents """
+        radioCs.configureOutput(Samd21::GpioDriver::Group::PA, Samd21::GpioDriver::Pin::PIN_18, Fw::Logic::HIGH);
+        radioEnable.configureOutput(Samd21::GpioDriver::Group::PA, Samd21::GpioDriver::Pin::PIN_20, Fw::Logic::LOW);
+        Samd21::PinMux::configure(PINMUX_PA16C_SERCOM1_PAD0);
+        Samd21::PinMux::configure(PINMUX_PA17C_SERCOM1_PAD1);
+        Samd21::PinMux::configure(PINMUX_PA19C_SERCOM1_PAD3);
+        radioSpi.configure(
+            Samd21::SercomKind::SERCOM_1,
+            1000,
+            Samd21::SpiDriver::DataOrder::MSB,
+            Samd21::SpiDriver::ClockPolarity::IdleLow,
+            Samd21::SpiDriver::ClockPhase::SampleOnLeadingSck,
+            Samd21::SpiDriver::DataInPinout::PAD3,
+            Samd21::SpiDriver::DataOutPinout::MOSI_0_SCK_1_CS_2,
+            Samd21::SpiDriver::RunInStandby::DISABLED,
+            Samd21::SpiDriver::HardwareChipSelect::DISABLED
+        );
+        """
+    }
+    instance radioCs: Samd21.GpioDriver base id FixedBaseIds.NO_DICTIONARY
+    instance radioEnable: Samd21.GpioDriver base id FixedBaseIds.NO_DICTIONARY
+    instance radioSupport: CuriosityReference.RadioSupport base id FixedBaseIds.NO_DICTIONARY
+    instance radio: Rfm9X.Rfm9XManager base id 0xD000 {
+        phase Fpp.ToCpp.Phases.startTasks """
+        // FREQUENCY_HZ is parameter id 3 in the pinned Rfm9XManager.fpp.
+        radioSupport.configure(radio.getIdBase() + 3);
+        radio.configure(125);
+        radio.loadParameters();
+        """
+    }
 }
