@@ -10,6 +10,11 @@ TEST(RadioSupport, StartupFrequency) {
     tester.testStartupFrequency();
 }
 
+TEST(RadioSupport, SendString) {
+    CuriosityReference::RadioSupportTester tester;
+    tester.testSendString();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

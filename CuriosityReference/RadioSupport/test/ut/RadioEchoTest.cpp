@@ -32,8 +32,10 @@ class RadioEchoTester final : public Rfm9X::Rfm9XManagerGTestBase {
         this->radio.set_prmGet_OutputPort(0, this->support.get_getParameter_InputPort(0));
         this->radio.set_allocate_OutputPort(0, this->support.get_allocate_InputPort(0));
         this->radio.set_deallocate_OutputPort(0, this->support.get_deallocate_InputPort(0));
-        this->radio.set_dataOut_OutputPort(0, this->radio.get_dataIn_InputPort(0));
-        this->radio.set_dataReturnOut_OutputPort(0, this->radio.get_dataReturnIn_InputPort(0));
+        this->radio.set_dataOut_OutputPort(0, this->support.get_receive_InputPort(0));
+        this->support.set_transmit_OutputPort(0, this->radio.get_dataIn_InputPort(0));
+        this->radio.set_dataReturnOut_OutputPort(0, this->support.get_sendReturn_InputPort(0));
+        this->support.set_returnBuffer_OutputPort(0, this->radio.get_dataReturnIn_InputPort(0));
         this->radio.set_resetGpio_OutputPort(0, this->get_from_resetGpio(0));
         this->radio.set_spiWriteRead_OutputPort(0, this->get_from_spiWriteRead(0));
         this->connect_to_run(0, this->radio.get_run_InputPort(0));

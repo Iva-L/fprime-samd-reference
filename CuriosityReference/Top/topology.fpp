@@ -286,9 +286,11 @@ module CuriosityReference {
             radio.allocate -> radioSupport.allocate
             radio.deallocate -> radioSupport.deallocate
             radio.prmGet -> radioSupport.getParameter
-            # Transfer ownership back to the radio for an exact-payload echo.
-            radio.dataOut -> radio.dataIn
-            radio.dataReturnOut -> radio.dataReturnIn
+            # Route both exact-payload echoes and test commands through support.
+            radio.dataOut -> radioSupport.receive
+            radioSupport.transmit -> radio.dataIn
+            radio.dataReturnOut -> radioSupport.sendReturn
+            radioSupport.returnBuffer -> radio.dataReturnIn
         }
 
         @ Attach the I2C client to the bus driver. Both request/callback pairs are

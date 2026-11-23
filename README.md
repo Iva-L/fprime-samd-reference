@@ -81,11 +81,24 @@ Avoid configuring the STM32 to echo every reply as well, which would create an e
 loop. A missing radio leaves the UART deployment running and produces radio detection
 warnings.
 
-Use the GDS command `radio.SEND_STRING` for a manual radio transmit, or request
-`tlm.SEND_PKT(3)` for radio counters and state. Parameter SET commands affect the running
+Use the GDS command `radioSupport.SEND_STRING` for a manual radio transmit, or request
+`tlm.SEND_PKT(3)` for radio counters and state. The SAMD command string limit is
+two characters even if the dictionary advertises a larger size. Parameter SET commands affect the running
 radio, but there is no parameter database or persistent parameter storage; SAVE
 commands fail and a board reboot restores 915 MHz and the other defaults. State and counters
 can also be observed through the `Radio` telemetry packet.
+The command reports submission, not RF completion; the radio's local queue
+may defer a payload while busy. Only one test command buffer can be outstanding.
+The Rfm9X submodule must include the manager change that removes its old
+`SEND_STRING` command; until then the old command remains available alongside
+the new one and the manager still reserves its old command buffer.
+
+The radio's transmit gate uses the most recently read `SignalDetected` bit
+and existing holdoffs; it waits for a successful status read after startup,
+reset, reconfiguration, or a status-read error. `RxOngoing` alone does not
+block a send because it was observed set on an idle receiver. This is a
+best-effort check, not a collision-free channel assessment, listen-before-talk
+implementation, or regulatory compliance mechanism.
 
 To run the simulated echo test with the same queue and reset timing as the flight image:
 

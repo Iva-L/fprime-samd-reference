@@ -3,6 +3,7 @@
 
 #include "CuriosityReference/RadioSupport/RadioSupportComponentAc.hpp"
 #include "fprime-sensors/Rfm9X/Components/Rfm9XManager/Rfm9XManagerCfg/FppConstantsAc.hpp"
+#include <Os/Mutex.hpp>
 
 namespace CuriosityReference {
 
@@ -15,10 +16,18 @@ class RadioSupport final : public RadioSupportComponentBase {
     Fw::Buffer allocate_handler(FwIndexType portNum, FwSizeType size) override;
     void deallocate_handler(FwIndexType portNum, Fw::Buffer& buffer) override;
     Fw::ParamValid getParameter_handler(FwIndexType portNum, FwPrmIdType id, Fw::ParamBuffer& value) override;
+    void receive_handler(FwIndexType portNum, Fw::Buffer& data, const ComCfg::FrameContext& context) override;
+    void sendReturn_handler(FwIndexType portNum, Fw::Buffer& data, const ComCfg::FrameContext& context) override;
+    void SEND_STRING_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, const Fw::CmdStringArg& payload) override;
 
     U8 m_buffer[Rfm9X::ManagerCfg::MAX_PAYLOAD_LENGTH];
     bool m_allocated;
     FwPrmIdType m_frequencyId;
+    Os::Mutex m_lock;
+    U8 m_payload[FW_CMD_STRING_MAX_SIZE];
+    bool m_pending;
+    bool m_submitting;
+    bool m_rejected;
 };
 
 }  // namespace CuriosityReference

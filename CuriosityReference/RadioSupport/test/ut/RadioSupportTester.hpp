@@ -15,6 +15,7 @@ class RadioSupportTester final : public RadioSupportGTestBase {
     ~RadioSupportTester();
     void testBufferOwnership();
     void testStartupFrequency();
+    void testSendString();
 
   private:
     void connectPorts();
@@ -22,8 +23,11 @@ class RadioSupportTester final : public RadioSupportGTestBase {
     Fw::Buffer allocate(FwSizeType size);
     void deallocate(Fw::Buffer& buffer);
     Fw::ParamValid getParameter(FwPrmIdType id, Fw::ParamBuffer& value);
+    void from_transmit_handler(FwIndexType portNum, Fw::Buffer& data,
+                               const ComCfg::FrameContext& context) override;
 
     RadioSupport component;
+    bool returnImmediately;
 };
 
 }  // namespace CuriosityReference

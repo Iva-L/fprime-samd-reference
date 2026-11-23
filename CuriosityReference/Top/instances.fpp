@@ -207,7 +207,7 @@ module CuriosityReference {
     }
     instance radioCs: Samd21.GpioDriver base id FixedBaseIds.NO_DICTIONARY
     instance radioEnable: Samd21.GpioDriver base id FixedBaseIds.NO_DICTIONARY
-    instance radioSupport: CuriosityReference.RadioSupport base id FixedBaseIds.NO_DICTIONARY
+    instance radioSupport: CuriosityReference.RadioSupport base id 0xD100
     instance radio: Rfm9X.Rfm9XManager base id 0xD000 {
         phase Fpp.ToCpp.Phases.startTasks """
         // FREQUENCY_HZ is parameter id 3 in the pinned Rfm9XManager.fpp.
