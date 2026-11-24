@@ -1,5 +1,3 @@
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Gateway")
-
 restrict_platforms(Samd21)
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top")
 

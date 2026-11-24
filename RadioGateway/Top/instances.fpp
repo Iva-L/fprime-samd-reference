@@ -55,10 +55,10 @@ module RadioGateway {
     }
     instance radioCs: Samd21.GpioDriver base id 0x9000
     instance radioEnable: Samd21.GpioDriver base id 0xA000
-    instance gateway: RadioGateway.Gateway base id 0xB000
+    instance gateway: Lora.Gateway base id 0xB000
     instance radio: Rfm9X.Rfm9XManager base id 0xC000 {
         phase Fpp.ToCpp.Phases.startTasks """
-        gateway.configure(radio.getIdBase() + 3);
+        gateway.configure(radio.getIdBase() + 3, 915000000U, 1024);
         radio.configure(125);
         radio.loadParameters();
         """

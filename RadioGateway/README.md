@@ -16,7 +16,9 @@ hardware testing as a transparent radio link**:
 - Gateway startup, diagnostic events, and fatal reports are not sent over the
   UART, so they cannot be mistaken for STM32 CCSDS telemetry.
 
-The transport is supplied by the `lib/fprime-lora` submodule. Initialize the
+The transport and gateway component are supplied by the `lib/fprime-lora`
+submodule. This deployment configures the gateway for 1,024-byte frames and a
+915 MHz frequency fallback. Initialize the
 submodule and regenerate the build cache when its location changes. Keep both
 reference deployments on compatible library versions. When command uplink is added,
 evaluate F Prime's `Svc.FrameAccumulator` and `CcsdsTcFrameDetector` before
