@@ -16,12 +16,9 @@ hardware testing as a transparent radio link**:
 - Gateway startup, diagnostic events, and fatal reports are not sent over the
   UART, so they cannot be mistaken for STM32 CCSDS telemetry.
 
-The transport is supplied by the shared `fprime-lora` library. For local
-development, `settings.ini` points to
-`../fprime-stm32-baremetal-reference/lib/fprime-lora`; both projects must be
-checked out as siblings. Once the library is published, update the location
-to the checkout or submodule chosen for this project and regenerate the build.
-When command uplink is added,
+The transport is supplied by the `lib/fprime-lora` submodule. Initialize the
+submodule and regenerate the build cache when its location changes. Keep both
+reference deployments on compatible library versions. When command uplink is added,
 evaluate F Prime's `Svc.FrameAccumulator` and `CcsdsTcFrameDetector` before
 using the experimental `TcStream`. The framework detector uses the gateway
 build's `ComCfg.SpacecraftId`, which must match the STM32 dictionary; verify
