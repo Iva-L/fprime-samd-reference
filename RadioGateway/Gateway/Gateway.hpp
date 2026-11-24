@@ -2,7 +2,7 @@
 #define RADIO_GATEWAY_GATEWAY_HPP
 
 #include "RadioGateway/Gateway/GatewayComponentAc.hpp"
-#include "RadioGateway/RadioTransport/RadioFragment.hpp"
+#include "fprime-lora/RadioTransport/RadioFragment.hpp"
 
 namespace RadioGateway {
 

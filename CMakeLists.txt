@@ -72,7 +72,6 @@ foreach (SAMD_REFERENCE_EXCLUDED_MODULE IN LISTS SAMD_REFERENCE_EXCLUDED_MODULES
 endforeach()
 
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config-samd-reference")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RadioGateway/RadioTransport")
 
 # === Deployments === #
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CuriosityReference/")
