@@ -15,3 +15,6 @@
 	path = lib/fprime-sensors
 	url = https://github.com/Iva-L/fprime-sensors.git
 	branch = Rfm9X-sensor
+[submodule "lib/fprime-lora"]
+	path = lib/fprime-lora
+	url = https://github.com/Iva-L/fprime-lora
