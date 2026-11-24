@@ -1,7 +1,6 @@
 #include "RadioGateway/Gateway/Gateway.hpp"
 
 #include <Fw/Types/Assert.hpp>
-#include <cstring>
 
 namespace RadioGateway {
 
@@ -14,7 +13,7 @@ void increment(volatile U32& value) {
 }
 
 Gateway::Gateway(const char* name)
-    : GatewayComponentBase(name), diagnostics{}, m_receiver(), m_rx{}, m_uart{}, m_frequencyId(0), m_uartSize(0),
+    : GatewayComponentBase(name), diagnostics{}, m_receiver(), m_rx{}, m_frequencyId(0), m_uartSize(0),
       m_rxAllocated(false), m_uartPending(false), m_uartInFlight(false) {}
 
 void Gateway::configure(FwPrmIdType frequencyId) {
@@ -56,18 +55,23 @@ void Gateway::radioReceive_handler(FwIndexType port, Fw::Buffer& buffer, const C
     RadioTransport::Fragment fragment{};
     if (!RadioTransport::decodeFragment(buffer.getData(), buffer.getSize(), fragment) ||
         fragment.kind != RadioTransport::FrameKind::TELEMETRY) {
-        m_receiver.reset();
+        if (!m_uartPending && !m_uartInFlight) {
+            m_receiver.reset();
+        }
         increment(diagnostics.rejectedPackets);
+    } else if (m_uartPending || m_uartInFlight) {
+        if (fragment.offset == 0) {
+            increment(diagnostics.droppedFrames);
+        }
     } else {
         const auto result = m_receiver.accept(buffer.getData(), buffer.getSize());
         if (result == RadioTransport::ReceiveResult::REJECTED) {
             increment(diagnostics.rejectedPackets);
         } else if (result == RadioTransport::ReceiveResult::COMPLETE) {
-            if (m_receiver.size() != RadioTransport::MAX_FRAME_SIZE || m_uartPending || m_uartInFlight) {
+            if (m_receiver.size() != RadioTransport::MAX_FRAME_SIZE) {
                 increment(diagnostics.droppedFrames);
             } else {
                 m_uartSize = static_cast<FwSizeType>(m_receiver.size());
-                std::memcpy(m_uart, m_receiver.data(), m_uartSize);
                 m_uartPending = true;
             }
         }
@@ -87,7 +91,7 @@ void Gateway::radioEvent_handler(FwIndexType port, FwEventIdType id, Fw::Time& t
 
 void Gateway::uartReturn_handler(FwIndexType port, Fw::Buffer& buffer, const Drv::ByteStreamStatus& status) {
     (void)port;
-    FW_ASSERT(m_uartInFlight && buffer.getData() == m_uart);
+    FW_ASSERT(m_uartInFlight && buffer.getData() == m_receiver.data());
     m_uartInFlight = false;
     if (status == Drv::ByteStreamStatus::OP_OK) {
         m_uartPending = false;
@@ -113,7 +117,7 @@ void Gateway::run_handler(FwIndexType port, U32 context) {
     (void)context;
     if (m_uartPending && !m_uartInFlight) {
         m_uartInFlight = true;
-        Fw::Buffer buffer(m_uart, m_uartSize);
+        Fw::Buffer buffer(m_receiver.data(), m_uartSize);
         this->uartSend_out(0, buffer);
     }
 }

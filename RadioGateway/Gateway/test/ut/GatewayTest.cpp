@@ -20,6 +20,16 @@ TEST(RadioGateway, RejectsMixedAndInvalidFragments) {
     tester.testMixedAndInvalidFragments();
 }
 
+TEST(RadioGateway, SharedBufferDuringRetryAndPartialOverlap) {
+    RadioGateway::GatewayTester tester;
+    tester.testSharedBufferDuringRetryAndPartialOverlap();
+}
+
+TEST(RadioGateway, ImmediateUartRetryRetainsSharedBuffer) {
+    RadioGateway::GatewayTester tester;
+    tester.testImmediateUartRetry();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

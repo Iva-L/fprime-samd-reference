@@ -132,9 +132,75 @@ class GatewayTester final : public GatewayGTestBase {
         invoke_to_uartReturn(0, output, Drv::ByteStreamStatus::OP_OK);
     }
 
+    void testSharedBufferDuringRetryAndPartialOverlap() {
+        U8 frame[RadioTransport::MAX_FRAME_SIZE]{};
+        for (std::size_t i = 0; i < sizeof frame; ++i) {
+            frame[i] = static_cast<U8>(i);
+        }
+        sendFrame(frame, 1, false);
+        U8 packet[RadioTransport::MAX_PACKET_SIZE]{};
+        ComCfg::FrameContext context;
+        frame[0] = 77;
+        auto size = RadioTransport::encodeFragment(RadioTransport::FrameKind::TELEMETRY, 0, 2, frame,
+                                                    sizeof frame, 0, packet, sizeof packet);
+        Fw::Buffer input(packet, static_cast<FwSizeType>(size));
+        invoke_to_radioReceive(0, input, context);
+        EXPECT_EQ(1U, component.diagnostics.droppedFrames);
+        invoke_to_run(0, 0);
+        ASSERT_from_uartSend_SIZE(1);
+        Fw::Buffer output = fromPortHistory_uartSend->at(0).fwBuffer;
+        for (std::size_t i = 0; i < sizeof frame; ++i) {
+            EXPECT_EQ(static_cast<U8>(i), output.getData()[i]);
+        }
+        invoke_to_uartReturn(0, output, Drv::ByteStreamStatus::SEND_RETRY);
+        sendFrame(frame, 3, false);
+        EXPECT_EQ(2U, component.diagnostics.droppedFrames);
+        for (std::size_t i = 0; i < sizeof frame; ++i) {
+            EXPECT_EQ(static_cast<U8>(i), output.getData()[i]);
+        }
+        invoke_to_run(0, 0);
+        ASSERT_from_uartSend_SIZE(2);
+        EXPECT_EQ(output.getData(), fromPortHistory_uartSend->at(1).fwBuffer.getData());
+        invoke_to_uartReturn(0, output, Drv::ByteStreamStatus::OP_OK);
+        size = RadioTransport::encodeFragment(RadioTransport::FrameKind::TELEMETRY, 0, 2, frame, sizeof frame,
+                                              RadioTransport::MAX_FRAGMENT_SIZE, packet, sizeof packet);
+        input = Fw::Buffer(packet, static_cast<FwSizeType>(size));
+        invoke_to_radioReceive(0, input, context);
+        EXPECT_GT(component.diagnostics.rejectedPackets, 0U);
+        sendFrame(frame, 4, false);
+        invoke_to_run(0, 0);
+        ASSERT_from_uartSend_SIZE(3);
+        Fw::Buffer next = fromPortHistory_uartSend->at(2).fwBuffer;
+        EXPECT_EQ(77U, next.getData()[0]);
+        invoke_to_uartReturn(0, next, Drv::ByteStreamStatus::OP_OK);
+    }
+
+    void testImmediateUartRetry() {
+        U8 frame[RadioTransport::MAX_FRAME_SIZE]{};
+        frame[0] = 45;
+        sendFrame(frame, 1, false);
+        retryImmediately = true;
+        invoke_to_run(0, 0);
+        ASSERT_from_uartSend_SIZE(1);
+        sendFrame(frame, 2, false);
+        EXPECT_EQ(1U, component.diagnostics.droppedFrames);
+        invoke_to_run(0, 0);
+        ASSERT_from_uartSend_SIZE(2);
+        Fw::Buffer output = fromPortHistory_uartSend->at(1).fwBuffer;
+        EXPECT_EQ(45U, output.getData()[0]);
+        invoke_to_uartReturn(0, output, Drv::ByteStreamStatus::OP_OK);
+    }
+
   private:
     void initComponents();
     void connectPorts();
+    void from_uartSend_handler(FwIndexType port, Fw::Buffer& buffer) override {
+        GatewayTesterBase::from_uartSend_handler(port, buffer);
+        if (retryImmediately) {
+            retryImmediately = false;
+            invoke_to_uartReturn(0, buffer, Drv::ByteStreamStatus::SEND_RETRY);
+        }
+    }
     void sendFrame(U8* frame, U32 id, bool skip) {
         U8 packet[RadioTransport::MAX_PACKET_SIZE];
         ComCfg::FrameContext context;
@@ -152,6 +218,7 @@ class GatewayTester final : public GatewayGTestBase {
         }
     }
     Gateway component;
+    bool retryImmediately = false;
 };
 
 }  // namespace RadioGateway

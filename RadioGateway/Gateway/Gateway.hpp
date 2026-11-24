@@ -34,7 +34,6 @@ class Gateway final : public GatewayComponentBase {
 
     RadioTransport::Reassembler m_receiver;
     U8 m_rx[RadioTransport::MAX_PACKET_SIZE];
-    U8 m_uart[RadioTransport::MAX_FRAME_SIZE];
     FwPrmIdType m_frequencyId;
     FwSizeType m_uartSize;
     bool m_rxAllocated;

@@ -5,7 +5,10 @@
 hardware testing as a transparent radio link**:
 
 - It reassembles STM32 telemetry fragments and forwards complete 1,024-byte
-  frames on the gateway UART. A busy UART causes additional frames to be dropped.
+  frames on the gateway UART. The reassembly buffer is retained until UART
+  completion; fragments arriving while it is pending or in flight are dropped.
+  `droppedFrames` counts each observed first fragment in that period, including
+  frames that might not otherwise have completed.
 - UART commands are counted and discarded. Radio command transmission, ACKs,
   retries, reset/session handling, and half-duplex arbitration are not integrated.
 - The portable command classes start disarmed and require a fresh manually
@@ -15,9 +18,11 @@ hardware testing as a transparent radio link**:
 
 The transport sources are copied from the STM32 reference project's
 `FprimeStm32BaremetalReference/Components/RadioTransport` directory. Keep both
-copies identical when changing the protocol. When command uplink is added, the
-gateway must use the STM32 deployment's spacecraft ID to configure `TcStream`
-and preserve bytes that the parser has not consumed while a frame is pending.
+copies identical when changing the protocol. When command uplink is added,
+evaluate F Prime's `Svc.FrameAccumulator` and `CcsdsTcFrameDetector` before
+using the experimental `TcStream`. The framework detector uses the gateway
+build's `ComCfg.SpacecraftId`, which must match the STM32 dictionary; verify
+its buffer allocation, overload behavior, and total memory use on the SAMD.
 
 For development, a debugger can inspect `RadioGateway::gateway.diagnostics`:
 `droppedFrames`, `rejectedPackets`, `allocationFailures`, `uartErrors`,
