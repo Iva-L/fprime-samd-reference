@@ -77,4 +77,5 @@ add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RadioGateway/RadioTransport")
 # === Deployments === #
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CuriosityReference/")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/CmdTlmTest/")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RadioGateway/")
 # === /Deployments === #
