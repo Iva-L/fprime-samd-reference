@@ -8,6 +8,8 @@ hardware testing as a transparent radio link**:
   frames on the gateway UART. A busy UART causes additional frames to be dropped.
 - UART commands are counted and discarded. Radio command transmission, ACKs,
   retries, reset/session handling, and half-duplex arbitration are not integrated.
+- The portable command classes start disarmed and require a fresh manually
+  authorized session, but no deployment controls or reset detection are wired.
 - Gateway startup, diagnostic events, and fatal reports are not sent over the
   UART, so they cannot be mistaken for STM32 CCSDS telemetry.
 
